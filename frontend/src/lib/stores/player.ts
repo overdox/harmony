@@ -118,3 +118,72 @@ export function seekPercent(percent: number) {
 	duration.subscribe((d) => (dur = d))();
 	currentTime.set((percent / 100) * dur);
 }
+
+export function toggleShuffle() {
+	shuffle.update((v) => !v);
+}
+
+export function toggleRepeat() {
+	repeat.update((mode) => {
+		if (mode === 'off') return 'all';
+		if (mode === 'all') return 'one';
+		return 'off';
+	});
+}
+
+export function cycleRepeat(): RepeatMode {
+	let newMode: RepeatMode = 'off';
+	repeat.update((mode) => {
+		if (mode === 'off') newMode = 'all';
+		else if (mode === 'all') newMode = 'one';
+		else newMode = 'off';
+		return newMode;
+	});
+	return newMode;
+}
+
+// Get next track from queue (handles shuffle)
+export function getNextTrack(): Track | null {
+	let next: Track | null = null;
+	let shuffleEnabled = false;
+
+	shuffle.subscribe((s) => (shuffleEnabled = s))();
+
+	queue.update((q) => {
+		if (q.length === 0) return q;
+
+		if (shuffleEnabled) {
+			const randomIndex = Math.floor(Math.random() * q.length);
+			next = q[randomIndex];
+			return [...q.slice(0, randomIndex), ...q.slice(randomIndex + 1)];
+		} else {
+			next = q[0];
+			return q.slice(1);
+		}
+	});
+
+	return next;
+}
+
+// Get previous track from history
+export function getPreviousTrack(): Track | null {
+	let prev: Track | null = null;
+
+	queueHistory.update((h) => {
+		if (h.length === 0) return h;
+		prev = h[h.length - 1];
+		return h.slice(0, -1);
+	});
+
+	return prev;
+}
+
+// Move current track to history
+export function pushToHistory(track: Track) {
+	queueHistory.update((h) => [...h, track]);
+}
+
+// Return current track to front of queue
+export function returnToQueue(track: Track) {
+	queue.update((q) => [track, ...q]);
+}
