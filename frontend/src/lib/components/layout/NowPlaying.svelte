@@ -31,9 +31,8 @@
 	} from '$lib/stores/player';
 	import { getAudioController, destroyAudioController } from '$lib/audio';
 	import { getArtworkUrl } from '$lib/api/client';
+	import { showQueuePanel, toggleQueuePanel } from '$lib/stores/ui';
 	import type AudioController from '$lib/audio/controller';
-
-	let showQueue = $state(false);
 	let previousVolume = $state(1);
 	let controller: AudioController | null = $state(null);
 
@@ -152,6 +151,9 @@
 					break;
 				case 'KeyR':
 					toggleRepeat();
+					break;
+				case 'KeyQ':
+					toggleQueuePanel();
 					break;
 			}
 		}
@@ -285,9 +287,9 @@
 			<Button
 				variant="icon"
 				size="sm"
-				class={clsx(showQueue && 'text-accent')}
-				onclick={() => (showQueue = !showQueue)}
-				title="Queue"
+				class={clsx($showQueuePanel && 'text-accent')}
+				onclick={toggleQueuePanel}
+				title="Queue (Q)"
 			>
 				<ListMusic size={18} />
 			</Button>

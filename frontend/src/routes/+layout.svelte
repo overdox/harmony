@@ -3,7 +3,9 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import NowPlaying from '$lib/components/layout/NowPlaying.svelte';
+	import QueuePanel from '$lib/components/QueuePanel.svelte';
 	import { Toast } from '$lib/components/ui';
+	import { showQueuePanel, closeQueuePanel } from '$lib/stores/ui';
 
 	let { children } = $props();
 
@@ -36,6 +38,9 @@
 
 <!-- Now Playing Bar -->
 <NowPlaying />
+
+<!-- Queue Panel -->
+<QueuePanel open={$showQueuePanel} onclose={closeQueuePanel} />
 
 <!-- Toast Notifications -->
 <Toast />
