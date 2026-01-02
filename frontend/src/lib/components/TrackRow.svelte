@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { clsx } from 'clsx';
 	import { Play, Pause, MoreHorizontal, Plus, ListPlus, Radio } from 'lucide-svelte';
-	import { Button, Dropdown } from '$lib/components/ui';
+	import { Button, Dropdown, Equalizer } from '$lib/components/ui';
 	import { formatDuration } from '$lib/utils';
 	import {
 		currentTrack,
@@ -134,9 +134,11 @@
 	tabindex="0"
 	onkeydown={(e) => e.key === 'Enter' && handlePlay()}
 >
-	<!-- Track Number / Play Button -->
+	<!-- Track Number / Play Button / Equalizer -->
 	<div class="w-8 flex items-center justify-center">
-		{#if isHovered || isCurrentTrack}
+		{#if isCurrentlyPlaying && !isHovered}
+			<Equalizer playing={true} size="sm" />
+		{:else if isHovered || isCurrentTrack}
 			<Button variant="ghost" size="sm" class="w-8 h-8 p-0" onclick={handleTogglePlay}>
 				{#if isCurrentlyPlaying}
 					<Pause size={16} />

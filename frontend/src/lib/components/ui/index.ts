@@ -7,3 +7,6 @@ export { default as Skeleton } from './Skeleton.svelte';
 export { default as Modal } from './Modal.svelte';
 export { default as Dropdown } from './Dropdown.svelte';
 export { default as Toast } from './Toast.svelte';
+export { default as Equalizer } from './Equalizer.svelte';
+export { default as PageTransition } from './PageTransition.svelte';
+export { default as FadeIn } from './FadeIn.svelte';

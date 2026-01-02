@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { clsx } from 'clsx';
 	import {
 		Play,
@@ -31,7 +32,7 @@
 	} from '$lib/stores/player';
 	import { getAudioController, destroyAudioController } from '$lib/audio';
 	import { getArtworkUrl } from '$lib/api/client';
-	import { showQueuePanel, toggleQueuePanel } from '$lib/stores/ui';
+	import { showQueuePanel, toggleQueuePanel, openMobilePlayer } from '$lib/stores/ui';
 	import type AudioController from '$lib/audio/controller';
 	let previousVolume = $state(1);
 	let controller: AudioController | null = $state(null);
@@ -155,6 +156,18 @@
 				case 'KeyQ':
 					toggleQueuePanel();
 					break;
+				case 'Slash':
+					e.preventDefault();
+					// Navigate to search and focus input
+					if (window.location.pathname !== '/search') {
+						goto('/search');
+					}
+					// Focus search input after navigation or if already on search page
+					setTimeout(() => {
+						const searchInput = document.querySelector('input[type="search"], input[placeholder*="Search"]') as HTMLInputElement;
+						searchInput?.focus();
+					}, 100);
+					break;
 			}
 		}
 
@@ -169,8 +182,11 @@
 	class="fixed bottom-0 left-0 right-0 h-[var(--spacing-nowplaying)] bg-surface-elevated border-t border-surface-border px-4 z-40"
 >
 	<div class="flex items-center justify-between h-full max-w-screen-2xl mx-auto">
-		<!-- Track Info -->
-		<div class="flex items-center gap-4 min-w-[180px] w-[30%]">
+		<!-- Track Info (clickable on mobile to open full player) -->
+		<button
+			class="flex items-center gap-4 min-w-[180px] w-[30%] text-left md:cursor-default"
+			onclick={openMobilePlayer}
+		>
 			{#if $currentTrack}
 				{@const coverUrl = getCoverArtUrl($currentTrack)}
 				<div class="w-14 h-14 bg-surface-hover rounded overflow-hidden flex-shrink-0">
@@ -186,7 +202,7 @@
 						</div>
 					{/if}
 				</div>
-				<div class="min-w-0">
+				<div class="min-w-0 hidden sm:block">
 					<p class="text-sm font-medium truncate">{$currentTrack.title}</p>
 					<p class="text-xs text-text-secondary truncate">{$currentTrack.artistName || 'Unknown Artist'}</p>
 				</div>
@@ -194,19 +210,19 @@
 				<div class="w-14 h-14 bg-surface-hover rounded flex-shrink-0 flex items-center justify-center text-text-muted">
 					<Play size={20} />
 				</div>
-				<div>
+				<div class="hidden sm:block">
 					<p class="text-sm text-text-muted">No track playing</p>
 				</div>
 			{/if}
-		</div>
+		</button>
 
 		<!-- Playback Controls -->
-		<div class="flex flex-col items-center gap-1 max-w-[40%] w-full">
+		<div class="flex flex-col items-center gap-1 max-w-[60%] sm:max-w-[40%] w-full">
 			<div class="flex items-center gap-2">
 				<Button
 					variant="icon"
 					size="sm"
-					class={clsx($shuffle && 'text-accent')}
+					class={clsx('hidden sm:flex', $shuffle && 'text-accent')}
 					onclick={toggleShuffle}
 					title="Shuffle (S)"
 				>
@@ -251,7 +267,7 @@
 				<Button
 					variant="icon"
 					size="sm"
-					class={clsx('relative', $repeat !== 'off' && 'text-accent')}
+					class={clsx('hidden sm:flex relative', $repeat !== 'off' && 'text-accent')}
 					onclick={toggleRepeat}
 					title="Repeat (R)"
 				>
@@ -263,8 +279,8 @@
 				</Button>
 			</div>
 
-			<!-- Progress Bar -->
-			<div class="flex items-center gap-2 w-full">
+			<!-- Progress Bar (hidden on mobile) -->
+			<div class="hidden sm:flex items-center gap-2 w-full">
 				<span class="text-xs text-text-muted w-10 text-right">
 					{formatTime($currentTime)}
 				</span>
@@ -282,19 +298,19 @@
 			</div>
 		</div>
 
-		<!-- Volume & Additional Controls -->
-		<div class="flex items-center justify-end gap-2 min-w-[180px] w-[30%]">
+		<!-- Volume & Additional Controls (simplified on mobile) -->
+		<div class="flex items-center justify-end gap-2 min-w-0 sm:min-w-[180px] w-auto sm:w-[30%]">
 			<Button
 				variant="icon"
 				size="sm"
-				class={clsx($showQueuePanel && 'text-accent')}
+				class={clsx('hidden md:flex', $showQueuePanel && 'text-accent')}
 				onclick={toggleQueuePanel}
 				title="Queue (Q)"
 			>
 				<ListMusic size={18} />
 			</Button>
 
-			<div class="flex items-center gap-2 w-32">
+			<div class="hidden md:flex items-center gap-2 w-32">
 				<Button variant="icon" size="sm" onclick={toggleMute} title="Mute (M)">
 					<svelte:component this={getVolumeIcon($volume)} size={18} />
 				</Button>
@@ -306,7 +322,7 @@
 				/>
 			</div>
 
-			<Button variant="icon" size="sm" title="Full screen">
+			<Button variant="icon" size="sm" title="Full screen" class="hidden md:flex">
 				<Maximize2 size={18} />
 			</Button>
 		</div>
