@@ -401,20 +401,27 @@ func (s *LibraryService) findOrCreateAlbum(ctx context.Context, metadata *scanne
 
 	// Process artwork for new album
 	go func() {
+		slog.Debug("looking for artwork", "album", album.Title, "albumID", album.ID, "audioPath", audioPath)
+
 		artwork, err := s.artworkProcessor.FindArtwork(audioPath)
 		if err != nil {
-			slog.Debug("no artwork found", "album", album.Title, "error", err)
+			slog.Debug("artwork search failed", "album", album.Title, "error", err)
 			return
 		}
 		if artwork == nil {
+			slog.Debug("no artwork found for album", "album", album.Title, "albumID", album.ID)
 			return
 		}
+
+		slog.Debug("found artwork", "album", album.Title, "source", artwork.Source, "mimeType", artwork.MIMEType, "dataSize", len(artwork.Data))
 
 		paths, err := s.artworkProcessor.ProcessAndCache(artwork, album.ID)
 		if err != nil {
 			slog.Warn("failed to process artwork", "album", album.Title, "error", err)
 			return
 		}
+
+		slog.Info("artwork cached", "album", album.Title, "albumID", album.ID, "paths", len(paths))
 
 		if originalPath, ok := paths["original"]; ok {
 			album.CoverArtPath = originalPath

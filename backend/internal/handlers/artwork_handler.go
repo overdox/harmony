@@ -65,15 +65,11 @@ func (h *ArtworkHandler) Get(c *gin.Context) {
 
 	// Check if file exists
 	if _, err := os.Stat(artworkPath); os.IsNotExist(err) {
-		// Try to serve a default placeholder
-		placeholderPath := filepath.Join(h.cacheDir, "placeholder.jpg")
-		if _, err := os.Stat(placeholderPath); err == nil {
-			c.File(placeholderPath)
-			return
-		}
-
-		// Return 404 if no placeholder
-		NotFound(c, "artwork")
+		// Return a 1x1 transparent placeholder to avoid 404 spam
+		// The frontend should handle this gracefully with CSS fallback
+		c.Header("Cache-Control", "public, max-age=3600")
+		c.Header("Content-Type", "image/svg+xml")
+		c.String(200, `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect fill="#1a1a2e" width="300" height="300"/><text x="150" y="160" font-family="Arial" font-size="48" fill="#4a4a6a" text-anchor="middle">♪</text></svg>`)
 		return
 	}
 
@@ -97,7 +93,10 @@ func (h *ArtworkHandler) GetAlbumArtwork(c *gin.Context) {
 	artworkPath := h.processor.GetArtworkPath(id, size)
 
 	if _, err := os.Stat(artworkPath); os.IsNotExist(err) {
-		NotFound(c, "album artwork")
+		// Return SVG placeholder for missing artwork
+		c.Header("Cache-Control", "public, max-age=3600")
+		c.Header("Content-Type", "image/svg+xml")
+		c.String(200, `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect fill="#1a1a2e" width="300" height="300"/><text x="150" y="160" font-family="Arial" font-size="48" fill="#4a4a6a" text-anchor="middle">♪</text></svg>`)
 		return
 	}
 

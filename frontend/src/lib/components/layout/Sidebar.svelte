@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { clsx } from 'clsx';
 	import { page } from '$app/stores';
-	import { Home, Search, Library, Plus, Music, ChevronLeft, ChevronRight, Settings } from 'lucide-svelte';
+	import { Home, Search, Library, Plus, ChevronLeft, ChevronRight, Settings, Music } from 'lucide-svelte';
 	import Button from '../ui/Button.svelte';
+	import logo from '$lib/assets/logo.svg';
 
 	interface Props {
 		collapsed?: boolean;
@@ -47,9 +48,7 @@
 >
 	<!-- Logo -->
 	<div class="flex items-center gap-3 px-4 py-4">
-		<div class="flex items-center justify-center w-10 h-10 bg-accent rounded-lg">
-			<Music class="w-6 h-6 text-black" />
-		</div>
+		<img src={logo} alt="Harmony" class="w-10 h-10" />
 		{#if !collapsed}
 			<span class="text-xl font-bold tracking-tight">Harmony</span>
 		{/if}

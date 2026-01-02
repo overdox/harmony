@@ -9,5 +9,6 @@ func AllModels() []interface{} {
 		&Track{},
 		&Playlist{},
 		&PlaylistTrack{},
+		&Settings{},
 	}
 }
