@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom color palette - dark theme focused */
+  --color-surface: #121212;
+  --color-surface-elevated: #1e1e1e;
+  --color-surface-hover: #2a2a2a;
+
+  --color-accent: #1db954;
+  --color-accent-hover: #1ed760;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Custom animations */
+  --animate-spin-slow: spin 3s linear infinite;
+  --animate-pulse-soft: pulse 2s ease-in-out infinite;
+}
+
+/* Base styles */
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface text-white font-sans antialiased;
+}

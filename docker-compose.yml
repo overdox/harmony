@@ -1,0 +1,65 @@
+services:
+  backend:
+    build: ./backend
+    container_name: harmony-backend
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      - DB_PATH=/data/harmony.db
+      - REDIS_URL=redis://redis:6379
+      - MEDIA_PATH=/media
+    volumes:
+      - ./data:/data
+      - ${MEDIA_PATH:-./media}:/media:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - harmony-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: harmony-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - PUBLIC_API_URL=http://backend:8080/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - harmony-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: harmony-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    networks:
+      - harmony-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  harmony-network:
+    driver: bridge
+
+volumes:
+  redis-data:
