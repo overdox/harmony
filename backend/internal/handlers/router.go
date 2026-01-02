@@ -41,6 +41,7 @@ type Handlers struct {
 	Library  *LibraryHandler
 	Stream   *StreamHandler
 	Artwork  *ArtworkHandler
+	Setup    *SetupHandler
 }
 
 // NewRouter creates and configures the Gin router
@@ -66,6 +67,7 @@ func NewRouter(
 	albumRepo := database.NewAlbumRepository(db.DB)
 	artistRepo := database.NewArtistRepository(db.DB)
 	playlistRepo := database.NewPlaylistRepository(db.DB)
+	settingsRepo := database.NewSettingsRepository(db.DB)
 
 	// Create handlers
 	handlers := &Handlers{
@@ -77,6 +79,7 @@ func NewRouter(
 		Library:  NewLibraryHandler(libService),
 		Stream:   NewStreamHandler(trackRepo, trans, cfg.MediaRoot),
 		Artwork:  NewArtworkHandler(cfg.CacheDir),
+		Setup:    NewSetupHandler(settingsRepo, libService, cfg.MediaRoot),
 	}
 
 	// Health check endpoint
@@ -137,6 +140,16 @@ func NewRouter(
 			library.GET("/scan/status", handlers.Library.ScanStatus)
 			library.POST("/scan/cancel", handlers.Library.CancelScan)
 			library.GET("/stats", handlers.Library.Stats)
+		}
+
+		// Setup/onboarding routes
+		setup := v1.Group("/setup")
+		{
+			setup.GET("/status", handlers.Setup.Status)
+			setup.GET("/folders", handlers.Setup.BrowseFolders)
+			setup.GET("/selected-folders", handlers.Setup.GetSelectedFolders)
+			setup.POST("/selected-folders", handlers.Setup.SetSelectedFolders)
+			setup.POST("/complete", handlers.Setup.Complete)
 		}
 
 		// Artwork routes

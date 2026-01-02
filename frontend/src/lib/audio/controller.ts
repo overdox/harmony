@@ -176,7 +176,15 @@ class AudioController {
 	}
 
 	private async loadTrack(track: Track): Promise<void> {
-		if (!this.audio) return;
+		if (!this.audio) {
+			console.warn('loadTrack: audio element not available');
+			return;
+		}
+
+		if (!track.id) {
+			console.error('loadTrack: track has no ID', track);
+			return;
+		}
 
 		isLoading.set(true);
 
@@ -231,7 +239,7 @@ class AudioController {
 		const repeatMode = get(repeat);
 		const track = get(currentTrack);
 
-		if (repeatMode === 'one' && track) {
+		if (repeatMode === 'one' && track && this.audio.src) {
 			// Repeat current track
 			this.audio.currentTime = 0;
 			this.audio.play().catch(this.handlePlayError.bind(this));
@@ -264,9 +272,12 @@ class AudioController {
 
 	// Public methods
 	play(): void {
-		if (this.audio?.src) {
-			this.audio.play().catch(this.handlePlayError.bind(this));
+		if (!this.audio) return;
+		if (!this.audio.src || this.audio.src === '') {
+			console.warn('Cannot play: no audio source set');
+			return;
 		}
+		this.audio.play().catch(this.handlePlayError.bind(this));
 	}
 
 	pause(): void {
@@ -340,7 +351,7 @@ class AudioController {
 
 		if (nextTrack) {
 			currentTrack.set(nextTrack);
-		} else if (repeatMode === 'all' && track && this.audio) {
+		} else if (repeatMode === 'all' && track && this.audio?.src) {
 			// No more tracks, but repeat all is on - restart queue
 			this.audio.currentTime = 0;
 			this.audio.play().catch(this.handlePlayError.bind(this));
