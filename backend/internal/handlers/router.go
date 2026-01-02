@@ -121,6 +121,7 @@ func NewRouter(
 			playlists.PUT("/:id", handlers.Playlist.Update)
 			playlists.DELETE("/:id", handlers.Playlist.Delete)
 			playlists.POST("/:id/tracks", handlers.Playlist.AddTrack)
+			playlists.PUT("/:id/tracks/reorder", handlers.Playlist.ReorderTracks)
 			playlists.DELETE("/:id/tracks/:trackId", handlers.Playlist.RemoveTrack)
 		}
 

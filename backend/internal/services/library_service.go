@@ -463,7 +463,22 @@ func (s *LibraryService) cleanupDeletedFiles(ctx context.Context) error {
 	s.progress.DeletedTracks = deletedCount
 	s.mu.Unlock()
 
-	// TODO: Clean up empty albums and artists
+	// Clean up empty albums and artists
+	if deletedCount > 0 {
+		albumsDeleted, err := s.albumRepo.DeleteEmpty(ctx)
+		if err != nil {
+			slog.Warn("failed to clean up empty albums", "error", err)
+		} else if albumsDeleted > 0 {
+			slog.Info("cleaned up empty albums", "count", albumsDeleted)
+		}
+
+		artistsDeleted, err := s.artistRepo.DeleteEmpty(ctx)
+		if err != nil {
+			slog.Warn("failed to clean up empty artists", "error", err)
+		} else if artistsDeleted > 0 {
+			slog.Info("cleaned up empty artists", "count", artistsDeleted)
+		}
+	}
 
 	return nil
 }

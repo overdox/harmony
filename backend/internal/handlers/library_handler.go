@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -29,6 +30,11 @@ func (h *LibraryHandler) Scan(c *gin.Context) {
 	var req ScanRequest
 	c.ShouldBindJSON(&req) // Optional body
 
+	// Also check query parameter for scan type
+	if c.Query("type") == "incremental" {
+		req.Incremental = true
+	}
+
 	// Check if scan is already in progress
 	if h.service.IsScanning() {
 		Conflict(c, "scan already in progress")
@@ -36,8 +42,10 @@ func (h *LibraryHandler) Scan(c *gin.Context) {
 	}
 
 	// Start scan in background
+	// Use background context since the HTTP request context will be cancelled
+	// when the response is sent, but we want the scan to continue
 	go func() {
-		ctx := c.Request.Context()
+		ctx := context.Background()
 		if req.Incremental {
 			h.service.IncrementalScan(ctx)
 		} else {

@@ -33,6 +33,7 @@
 
 	let { open = false, onclose }: Props = $props();
 
+	const currentTrackCover = $derived(getCoverUrl($currentTrack));
 	let showSaveModal = $state(false);
 	let newPlaylistName = $state('');
 	let draggedIndex = $state<number | null>(null);
@@ -96,7 +97,8 @@
 		}
 	}
 
-	function getCoverUrl(track: Track): string | null {
+	function getCoverUrl(track: Track | null): string | null {
+		if (!track) return null;
 		if (track.coverArtUrl) return track.coverArtUrl;
 		if (track.albumId) return getArtworkUrl('album', track.albumId, 'thumbnail');
 		return null;
@@ -161,9 +163,8 @@
 				</h3>
 				<div class="flex items-center gap-3 p-2 bg-accent/10 rounded-lg">
 					<div class="w-10 h-10 rounded overflow-hidden bg-surface-hover flex-shrink-0">
-						{@const cover = getCoverUrl($currentTrack)}
-						{#if cover}
-							<img src={cover} alt="" class="w-full h-full object-cover" />
+						{#if currentTrackCover}
+							<img src={currentTrackCover} alt="" class="w-full h-full object-cover" />
 						{/if}
 					</div>
 					<div class="flex-1 min-w-0">
@@ -210,6 +211,7 @@
 			{:else}
 				<div class="space-y-1">
 					{#each $queue as track, i (track.id + '-' + i)}
+						{@const cover = getCoverUrl(track)}
 						<div
 							class={clsx(
 								'group flex items-center gap-2 p-2 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer',
@@ -229,7 +231,6 @@
 							<span class="w-5 text-center text-xs text-text-muted">{i + 1}</span>
 
 							<div class="w-8 h-8 rounded overflow-hidden bg-surface-hover flex-shrink-0">
-								{@const cover = getCoverUrl(track)}
 								{#if cover}
 									<img src={cover} alt="" class="w-full h-full object-cover" />
 								{/if}
@@ -268,9 +269,9 @@
 				</h3>
 				<div class="space-y-1 opacity-60">
 					{#each $queueHistory.slice(-5).reverse() as track, i (track.id + '-history-' + i)}
+						{@const cover = getCoverUrl(track)}
 						<div class="flex items-center gap-2 p-2 rounded-lg">
 							<div class="w-8 h-8 rounded overflow-hidden bg-surface-hover flex-shrink-0">
-								{@const cover = getCoverUrl(track)}
 								{#if cover}
 									<img src={cover} alt="" class="w-full h-full object-cover" />
 								{/if}
@@ -291,7 +292,7 @@
 
 <!-- Save as Playlist Modal -->
 <Modal bind:open={showSaveModal} title="Save Queue as Playlist">
-	<form onsubmit|preventDefault={handleSaveAsPlaylist} class="space-y-4">
+	<form onsubmit={(e) => { e.preventDefault(); handleSaveAsPlaylist(); }} class="space-y-4">
 		<Input
 			type="text"
 			placeholder="Playlist name"

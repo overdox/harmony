@@ -18,6 +18,7 @@
 		updatePlaylist,
 		deletePlaylist,
 		removeTrackFromPlaylist,
+		reorderPlaylistTracks,
 		getPlaylistCoverUrl
 	} from '$lib/api/playlists';
 	import { formatTotalDuration, pluralize, shuffleArray } from '$lib/utils';
@@ -146,13 +147,20 @@
 		dragOverIndex = index;
 	}
 
-	function handleDragEnd() {
+	async function handleDragEnd() {
 		if (draggedIndex !== null && dragOverIndex !== null && playlist?.tracks) {
 			const tracks = [...playlist.tracks];
 			const [draggedItem] = tracks.splice(draggedIndex, 1);
 			tracks.splice(dragOverIndex, 0, draggedItem);
 			playlist.tracks = tracks;
-			// TODO: Save new order to backend
+
+			// Save new order to backend
+			try {
+				const trackIds = tracks.map((t) => t.id);
+				await reorderPlaylistTracks(playlist.id, trackIds);
+			} catch (e) {
+				console.error('Failed to save track order:', e);
+			}
 		}
 		draggedIndex = null;
 		dragOverIndex = null;
@@ -313,7 +321,7 @@
 
 <!-- Edit Modal -->
 <Modal bind:open={showEditModal} title="Edit Playlist">
-	<form onsubmit|preventDefault={handleSaveEdit} class="space-y-4">
+	<form onsubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} class="space-y-4">
 		<div>
 			<label class="block text-sm font-medium mb-1">Name</label>
 			<Input

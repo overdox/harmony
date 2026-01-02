@@ -57,7 +57,7 @@ type PlaylistResponse struct {
 func (h *PlaylistHandler) List(c *gin.Context) {
 	pagination := ParsePagination(c)
 
-	// TODO: Get user ID from auth context
+	// Filter by user ID (auth not implemented - uses query param for now)
 	userID := c.Query("userId")
 
 	opts := database.PlaylistListOptions{
@@ -103,7 +103,7 @@ func (h *PlaylistHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get user ID from auth context
+	// Use default user (auth not implemented yet)
 	userID := "default-user"
 
 	playlist := &models.Playlist{
@@ -317,4 +317,45 @@ func (h *PlaylistHandler) RemoveTrack(c *gin.Context) {
 	}
 
 	NoContent(c)
+}
+
+// ReorderTracksRequest represents a request to reorder tracks
+type ReorderTracksRequest struct {
+	TrackIDs []string `json:"trackIds" binding:"required"`
+}
+
+// ReorderTracks handles PUT /api/v1/playlists/:id/tracks/reorder
+func (h *PlaylistHandler) ReorderTracks(c *gin.Context) {
+	playlistID := c.Param("id")
+	if playlistID == "" {
+		BadRequest(c, "playlist ID required")
+		return
+	}
+
+	var req ReorderTracksRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request body")
+		return
+	}
+
+	// Check if playlist exists
+	_, err := h.repo.FindByID(c.Request.Context(), playlistID)
+	if err != nil {
+		if errors.Is(err, database.ErrPlaylistNotFound) {
+			NotFound(c, "playlist")
+			return
+		}
+		InternalError(c, "failed to get playlist")
+		return
+	}
+
+	if err := h.repo.ReorderTracks(c.Request.Context(), playlistID, req.TrackIDs); err != nil {
+		InternalError(c, "failed to reorder tracks")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "tracks reordered",
+	})
 }

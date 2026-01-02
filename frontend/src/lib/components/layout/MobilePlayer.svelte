@@ -49,6 +49,8 @@
 		if (track?.albumId) return getArtworkUrl('album', track.albumId, 'large');
 		return null;
 	}
+
+	const coverUrl = $derived(getCoverUrl($currentTrack));
 </script>
 
 {#if open && $currentTrack}
@@ -70,7 +72,6 @@
 
 		<!-- Album Art -->
 		<div class="flex-1 flex items-center justify-center p-8">
-			{@const coverUrl = getCoverUrl($currentTrack)}
 			<div class="w-full max-w-sm aspect-square rounded-lg overflow-hidden shadow-2xl bg-surface-elevated">
 				{#if coverUrl}
 					<img

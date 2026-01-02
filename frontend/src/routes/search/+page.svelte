@@ -272,18 +272,21 @@
 					</div>
 					<div class="flex flex-wrap gap-2">
 						{#each searchHistory as historyItem}
-							<button
-								class="group flex items-center gap-2 px-4 py-2 bg-surface-elevated rounded-full hover:bg-surface-hover transition-colors"
+							<div
+								class="group flex items-center gap-2 px-4 py-2 bg-surface-elevated rounded-full hover:bg-surface-hover transition-colors cursor-pointer"
+								role="button"
+								tabindex="0"
 								onclick={() => handleHistoryClick(historyItem)}
+								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleHistoryClick(historyItem); }}
 							>
 								<span>{historyItem}</span>
 								<button
 									class="opacity-0 group-hover:opacity-100 hover:text-accent transition-opacity"
-									onclick|stopPropagation={() => removeFromHistory(historyItem)}
+									onclick={(e) => { e.stopPropagation(); removeFromHistory(historyItem); }}
 								>
 									<X size={14} />
 								</button>
-							</button>
+							</div>
 						{/each}
 					</div>
 				</div>

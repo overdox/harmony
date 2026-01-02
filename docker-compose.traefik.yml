@@ -1,0 +1,106 @@
+# Traefik Reverse Proxy Configuration
+# Use with: docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+#
+# Features:
+#   - SSL/TLS termination with Let's Encrypt
+#   - Automatic HTTPS redirect
+#   - Single entry point for all services
+#
+# Prerequisites:
+#   - Domain name pointing to your server
+#   - Ports 80 and 443 available
+
+services:
+  # ============================================
+  # Traefik Reverse Proxy
+  # ============================================
+  traefik:
+    image: traefik:v3.0
+    container_name: harmony-traefik
+    restart: unless-stopped
+    command:
+      # API and Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      # Entry points
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # HTTP to HTTPS redirect
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Let's Encrypt
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      # Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=harmony-network"
+      # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    networks:
+      - harmony-network
+    labels:
+      # Dashboard
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      # Basic auth for dashboard (generate with: htpasswd -nb admin password)
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH:-admin:$$apr1$$xyz$$abc}"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ============================================
+  # Backend with Traefik labels
+  # ============================================
+  backend:
+    ports: []  # Remove direct port exposure
+    labels:
+      - "traefik.enable=true"
+      # API routes
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+      # Health check routes
+      - "traefik.http.routers.backend-health.rule=Host(`${DOMAIN:-localhost}`) && Path(`/health`)"
+      - "traefik.http.routers.backend-health.entrypoints=websecure"
+      - "traefik.http.routers.backend-health.tls.certresolver=letsencrypt"
+
+  # ============================================
+  # Frontend with Traefik labels
+  # ============================================
+  frontend:
+    ports: []  # Remove direct port exposure
+    environment:
+      - ORIGIN=https://${DOMAIN:-localhost}
+      - PUBLIC_API_URL=https://${DOMAIN:-localhost}/api/v1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      # Compression
+      - "traefik.http.middlewares.compress.compress=true"
+      - "traefik.http.routers.frontend.middlewares=compress"
+
+# ============================================
+# Additional Volumes
+# ============================================
+volumes:
+  traefik-certs:
+    name: harmony-traefik-certs

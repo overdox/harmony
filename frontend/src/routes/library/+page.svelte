@@ -477,7 +477,7 @@
 
 <!-- Create Playlist Modal -->
 <Modal bind:open={showCreatePlaylist} title="Create Playlist">
-	<form onsubmit|preventDefault={handleCreatePlaylist} class="space-y-4">
+	<form onsubmit={(e) => { e.preventDefault(); handleCreatePlaylist(); }} class="space-y-4">
 		<Input
 			type="text"
 			placeholder="Playlist name"

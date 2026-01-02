@@ -25,8 +25,11 @@ interface AudioControllerOptions {
 	crossfadeDuration?: number;
 }
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
 class AudioController {
-	private audio: HTMLAudioElement;
+	private audio: HTMLAudioElement | null = null;
 	private nextAudio: HTMLAudioElement | null = null;
 	private quality: AudioQuality = 'original';
 	private preloadNext: boolean = true;
@@ -35,11 +38,16 @@ class AudioController {
 	private unsubscribers: (() => void)[] = [];
 
 	constructor(options: AudioControllerOptions = {}) {
-		this.audio = new Audio();
 		this.quality = options.quality || 'original';
 		this.preloadNext = options.preloadNext ?? true;
 		this.crossfadeDuration = options.crossfadeDuration || 0;
 
+		// Only initialize audio in browser environment
+		if (!isBrowser) {
+			return;
+		}
+
+		this.audio = new Audio();
 		this.setupAudioElement();
 		this.setupStoreSubscriptions();
 		this.setupMediaSession();
@@ -47,6 +55,8 @@ class AudioController {
 	}
 
 	private setupAudioElement(): void {
+		if (!this.audio) return;
+
 		// Audio element configuration
 		this.audio.preload = 'auto';
 
@@ -62,6 +72,8 @@ class AudioController {
 	}
 
 	private setupStoreSubscriptions(): void {
+		if (!this.audio) return;
+
 		// Subscribe to current track changes
 		const trackUnsub = currentTrack.subscribe((track) => {
 			if (track && this.isInitialized) {
@@ -72,7 +84,7 @@ class AudioController {
 
 		// Subscribe to play state changes
 		const playUnsub = isPlaying.subscribe((playing) => {
-			if (this.isInitialized && this.audio.src) {
+			if (this.isInitialized && this.audio?.src) {
 				if (playing && this.audio.paused) {
 					this.audio.play().catch(this.handlePlayError.bind(this));
 				} else if (!playing && !this.audio.paused) {
@@ -84,14 +96,14 @@ class AudioController {
 
 		// Subscribe to volume changes
 		const volUnsub = volume.subscribe((vol) => {
-			this.audio.volume = vol;
+			if (this.audio) this.audio.volume = vol;
 		});
 		this.unsubscribers.push(volUnsub);
 
 		// Subscribe to seek requests
 		const seekUnsub = currentTime.subscribe((time) => {
 			// Only seek if the difference is significant (avoid feedback loop)
-			if (Math.abs(this.audio.currentTime - time) > 1) {
+			if (this.audio && Math.abs(this.audio.currentTime - time) > 1) {
 				this.audio.currentTime = time;
 			}
 		});
@@ -99,7 +111,7 @@ class AudioController {
 	}
 
 	private setupMediaSession(): void {
-		if (!('mediaSession' in navigator)) return;
+		if (!isBrowser || !('mediaSession' in navigator)) return;
 
 		navigator.mediaSession.setActionHandler('play', () => this.play());
 		navigator.mediaSession.setActionHandler('pause', () => this.pause());
@@ -111,17 +123,19 @@ class AudioController {
 			}
 		});
 		navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+			if (!this.audio) return;
 			const skipTime = details.seekOffset || 10;
 			this.seek(Math.max(0, this.audio.currentTime - skipTime));
 		});
 		navigator.mediaSession.setActionHandler('seekforward', (details) => {
+			if (!this.audio) return;
 			const skipTime = details.seekOffset || 10;
 			this.seek(Math.min(this.audio.duration, this.audio.currentTime + skipTime));
 		});
 	}
 
 	private updateMediaSessionMetadata(track: Track): void {
-		if (!('mediaSession' in navigator)) return;
+		if (!isBrowser || !('mediaSession' in navigator)) return;
 
 		const artwork: MediaImage[] = [];
 		if (track.albumId) {
@@ -145,7 +159,8 @@ class AudioController {
 	}
 
 	private updateMediaSessionPosition(): void {
-		if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+		if (!isBrowser || !('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+		if (!this.audio) return;
 
 		try {
 			if (this.audio.duration && !isNaN(this.audio.duration)) {
@@ -161,6 +176,8 @@ class AudioController {
 	}
 
 	private async loadTrack(track: Track): Promise<void> {
+		if (!this.audio) return;
+
 		isLoading.set(true);
 
 		const streamUrl = getStreamUrl(track.id, this.quality);
@@ -184,6 +201,8 @@ class AudioController {
 	}
 
 	private preloadNextTrack(): void {
+		if (!isBrowser) return;
+
 		const queueTracks = get(queue);
 		if (queueTracks.length > 0) {
 			const nextTrack = queueTracks[0];
@@ -197,15 +216,18 @@ class AudioController {
 
 	// Event handlers
 	private handleTimeUpdate(): void {
+		if (!this.audio) return;
 		currentTime.set(this.audio.currentTime);
 		this.updateMediaSessionPosition();
 	}
 
 	private handleDurationChange(): void {
+		if (!this.audio) return;
 		duration.set(this.audio.duration || 0);
 	}
 
 	private handleEnded(): void {
+		if (!this.audio) return;
 		const repeatMode = get(repeat);
 		const track = get(currentTrack);
 
@@ -242,13 +264,13 @@ class AudioController {
 
 	// Public methods
 	play(): void {
-		if (this.audio.src) {
+		if (this.audio?.src) {
 			this.audio.play().catch(this.handlePlayError.bind(this));
 		}
 	}
 
 	pause(): void {
-		this.audio.pause();
+		this.audio?.pause();
 	}
 
 	toggle(): void {
@@ -260,6 +282,7 @@ class AudioController {
 	}
 
 	stop(): void {
+		if (!this.audio) return;
 		this.audio.pause();
 		this.audio.currentTime = 0;
 		isPlaying.set(false);
@@ -267,6 +290,7 @@ class AudioController {
 	}
 
 	seek(time: number): void {
+		if (!this.audio) return;
 		if (!isNaN(time) && isFinite(time)) {
 			this.audio.currentTime = Math.max(0, Math.min(time, this.audio.duration || 0));
 			currentTime.set(this.audio.currentTime);
@@ -274,6 +298,7 @@ class AudioController {
 	}
 
 	seekPercent(percent: number): void {
+		if (!this.audio) return;
 		const time = (percent / 100) * (this.audio.duration || 0);
 		this.seek(time);
 	}
@@ -288,7 +313,7 @@ class AudioController {
 		}
 
 		// Use preloaded audio if available
-		if (this.nextAudio && this.nextAudio.src) {
+		if (this.audio && this.nextAudio && this.nextAudio.src) {
 			const queueTracks = get(queue);
 			if (queueTracks.length > 0) {
 				const nextTrack = queueTracks[0];
@@ -315,9 +340,8 @@ class AudioController {
 
 		if (nextTrack) {
 			currentTrack.set(nextTrack);
-		} else if (repeatMode === 'all' && track) {
+		} else if (repeatMode === 'all' && track && this.audio) {
 			// No more tracks, but repeat all is on - restart queue
-			// In a real scenario, you'd restore the full queue here
 			this.audio.currentTime = 0;
 			this.audio.play().catch(this.handlePlayError.bind(this));
 		} else {
@@ -329,7 +353,7 @@ class AudioController {
 
 	previous(): void {
 		// If we're more than 3 seconds into the track, restart it
-		if (this.audio.currentTime > 3) {
+		if (this.audio && this.audio.currentTime > 3) {
 			this.seek(0);
 			return;
 		}
@@ -352,31 +376,32 @@ class AudioController {
 	setVolume(level: number): void {
 		const clamped = Math.max(0, Math.min(1, level));
 		volume.set(clamped);
-		this.audio.volume = clamped;
+		if (this.audio) this.audio.volume = clamped;
 	}
 
 	mute(): void {
-		this.audio.muted = true;
+		if (this.audio) this.audio.muted = true;
 	}
 
 	unmute(): void {
-		this.audio.muted = false;
+		if (this.audio) this.audio.muted = false;
 	}
 
 	toggleMute(): boolean {
+		if (!this.audio) return false;
 		this.audio.muted = !this.audio.muted;
 		return this.audio.muted;
 	}
 
 	isMuted(): boolean {
-		return this.audio.muted;
+		return this.audio?.muted ?? false;
 	}
 
 	setQuality(quality: AudioQuality): void {
 		this.quality = quality;
 		// Reload current track with new quality
 		const track = get(currentTrack);
-		if (track) {
+		if (track && this.audio) {
 			const currentPos = this.audio.currentTime;
 			const wasPlaying = !this.audio.paused;
 			this.loadTrack(track).then(() => {
@@ -393,27 +418,29 @@ class AudioController {
 	}
 
 	getCurrentTime(): number {
-		return this.audio.currentTime;
+		return this.audio?.currentTime ?? 0;
 	}
 
 	getDuration(): number {
-		return this.audio.duration || 0;
+		return this.audio?.duration ?? 0;
 	}
 
 	getBuffered(): TimeRanges | null {
-		return this.audio.buffered;
+		return this.audio?.buffered ?? null;
 	}
 
 	getBufferedPercent(): number {
-		if (this.audio.buffered.length === 0 || !this.audio.duration) return 0;
+		if (!this.audio || this.audio.buffered.length === 0 || !this.audio.duration) return 0;
 		return (this.audio.buffered.end(this.audio.buffered.length - 1) / this.audio.duration) * 100;
 	}
 
 	// Cleanup
 	destroy(): void {
 		this.unsubscribers.forEach((unsub) => unsub());
-		this.audio.pause();
-		this.audio.src = '';
+		if (this.audio) {
+			this.audio.pause();
+			this.audio.src = '';
+		}
 		this.nextAudio?.pause();
 		this.nextAudio = null;
 	}

@@ -113,10 +113,23 @@ func (r *TrackRepository) List(ctx context.Context, opts TrackListOptions) ([]mo
 		return nil, 0, fmt.Errorf("counting tracks: %w", err)
 	}
 
-	// Apply sorting
+	// Apply sorting - map frontend field names to database columns
 	sortBy := "title"
 	if opts.SortBy != "" {
-		sortBy = opts.SortBy
+		// Map common field names to actual column names
+		sortMapping := map[string]string{
+			"name":        "title",
+			"title":       "title",
+			"duration":    "duration",
+			"trackNumber": "track_number",
+			"year":        "year",
+			"createdAt":   "created_at",
+			"updatedAt":   "updated_at",
+		}
+		if mapped, ok := sortMapping[opts.SortBy]; ok {
+			sortBy = mapped
+		}
+		// If not in mapping, ignore invalid sort field for security
 	}
 	order := "ASC"
 	if opts.Order == "desc" {
