@@ -1,38 +1,103 @@
-# sv
+# Harmony Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+The web interface for Harmony, built with SvelteKit and Tailwind CSS.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Framework**: SvelteKit 2 with Svelte 5
+- **Styling**: Tailwind CSS 4
+- **Language**: TypeScript
+- **Icons**: Lucide Svelte
 
-```sh
-# create a new project in the current directory
-npx sv create
+## Development
 
-# create a new project in my-app
-npx sv create my-app
-```
+### Prerequisites
 
-## Developing
+- Node.js 20+
+- npm or pnpm
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### Setup
 
-```sh
+```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
-## Building
+The development server runs at http://localhost:5173.
 
-To create a production version of your app:
+### Environment Variables
 
-```sh
+Create a `.env` file for local development:
+
+```env
+PUBLIC_API_URL=http://localhost:8080/api/v1
+```
+
+## Project Structure
+
+```
+src/
+├── routes/                 # SvelteKit pages
+│   ├── +layout.svelte      # Root layout
+│   ├── +page.svelte        # Home page
+│   ├── album/[id]/         # Album detail
+│   ├── artist/[id]/        # Artist detail
+│   ├── library/            # Library page
+│   ├── playlist/[id]/      # Playlist detail
+│   ├── search/             # Search page
+│   └── settings/           # Settings page
+├── lib/
+│   ├── api/                # API client modules
+│   ├── audio/              # Audio playback
+│   ├── components/
+│   │   ├── layout/         # Layout components
+│   │   └── ui/             # Base UI components
+│   ├── stores/             # Svelte stores
+│   └── utils/              # Utility functions
+├── app.css                 # Global styles
+└── app.html                # HTML template
+```
+
+## Stores
+
+### Player Store (`lib/stores/player.ts`)
+
+```typescript
+import { currentTrack, isPlaying, volume, queue } from '$lib/stores/player';
+```
+
+### Theme Store (`lib/stores/theme.ts`)
+
+```typescript
+import { theme, accentColor, setTheme, setAccentColor } from '$lib/stores/theme';
+
+// Theme: 'dark' | 'light' | 'system'
+setTheme('dark');
+
+// Accent: 'green' | 'blue' | 'purple' | 'pink' | 'orange' | 'red'
+setAccentColor('green');
+```
+
+## Building for Production
+
+```bash
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+The build output is in the `build/` directory.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Docker
+
+```bash
+docker build -t harmony-frontend .
+docker run -p 3000:3000 harmony-frontend
+```

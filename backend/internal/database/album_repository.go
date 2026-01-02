@@ -121,10 +121,21 @@ func (r *AlbumRepository) List(ctx context.Context, opts AlbumListOptions) ([]mo
 		return nil, 0, fmt.Errorf("counting albums: %w", err)
 	}
 
-	// Apply sorting
+	// Apply sorting - map frontend field names to database columns
 	sortBy := "title"
 	if opts.SortBy != "" {
-		sortBy = opts.SortBy
+		// Map common field names to actual column names
+		sortMapping := map[string]string{
+			"name":      "title",
+			"title":     "title",
+			"year":      "year",
+			"createdAt": "created_at",
+			"updatedAt": "updated_at",
+		}
+		if mapped, ok := sortMapping[opts.SortBy]; ok {
+			sortBy = mapped
+		}
+		// If not in mapping, ignore invalid sort field for security
 	}
 	order := "ASC"
 	if opts.Order == "desc" {
@@ -230,4 +241,16 @@ func (r *AlbumRepository) GetByArtist(ctx context.Context, artistID string) ([]m
 		return nil, fmt.Errorf("getting albums by artist: %w", err)
 	}
 	return albums, nil
+}
+
+// DeleteEmpty deletes albums that have no tracks
+func (r *AlbumRepository) DeleteEmpty(ctx context.Context) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		DELETE FROM albums
+		WHERE id NOT IN (SELECT DISTINCT album_id FROM tracks WHERE album_id IS NOT NULL)
+	`)
+	if result.Error != nil {
+		return 0, fmt.Errorf("deleting empty albums: %w", result.Error)
+	}
+	return result.RowsAffected, nil
 }

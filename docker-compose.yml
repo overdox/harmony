@@ -1,17 +1,48 @@
+# Harmony - Self-Hosted Music Streaming
+# Container Compose Configuration (Docker & Podman compatible)
+#
+# Usage with Docker:
+#   docker compose up -d
+#
+# Usage with Podman:
+#   podman-compose up -d
+#   # or: podman compose up -d
+#
+# Quick Start:
+#   1. Copy .env.example to .env and configure MEDIA_PATH
+#   2. Run: make up (or ./harmony.sh up)
+#   3. Access at http://localhost:3000
+
 services:
+  # ============================================
+  # Backend API Service
+  # ============================================
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        VERSION: ${VERSION:-1.0.0}
+        BUILD_TIME: ${BUILD_TIME:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+    image: harmony-backend:${VERSION:-latest}
     container_name: harmony-backend
     restart: unless-stopped
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
+      - GIN_MODE=release
       - DB_PATH=/data/harmony.db
       - REDIS_URL=redis://redis:6379
       - MEDIA_PATH=/media
+      - ARTWORK_PATH=/app/artwork
+      - SCAN_ON_STARTUP=${SCAN_ON_STARTUP:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TZ=${TZ:-UTC}
     volumes:
-      - ./data:/data
-      - ${MEDIA_PATH:-./media}:/media:ro
+      - harmony-data:/data
+      - harmony-artwork:/app/artwork
+      - harmony-cache:/app/cache
+      - ${MEDIA_PATH:-./media}:/media:ro,z
     depends_on:
       redis:
         condition: service_healthy
@@ -21,16 +52,41 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
+      start_period: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ============================================
+  # Frontend Web Interface
+  # ============================================
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VERSION: ${VERSION:-1.0.0}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-/api/v1}
+    image: harmony-frontend:${VERSION:-latest}
     container_name: harmony-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - PUBLIC_API_URL=http://backend:8080/api/v1
+      - NODE_ENV=production
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://backend:8080/api/v1}
+      - TZ=${TZ:-UTC}
     depends_on:
       backend:
         condition: service_healthy
@@ -40,13 +96,35 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
+      start_period: 15s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ============================================
+  # Redis Cache
+  # ============================================
   redis:
     image: redis:7-alpine
     container_name: harmony-redis
     restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
+    command: >
+      redis-server
+      --save 60 1
+      --loglevel warning
+      --maxmemory ${REDIS_MAXMEMORY:-128mb}
+      --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
     networks:
@@ -55,11 +133,41 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
+      start_period: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
+# ============================================
+# Networks
+# ============================================
 networks:
   harmony-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
+# ============================================
+# Volumes
+# ============================================
 volumes:
+  harmony-data:
+    name: harmony-data
+  harmony-artwork:
+    name: harmony-artwork
+  harmony-cache:
+    name: harmony-cache
   redis-data:
+    name: harmony-redis-data

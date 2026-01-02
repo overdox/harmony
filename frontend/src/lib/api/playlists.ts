@@ -56,6 +56,13 @@ export async function removeTrackFromPlaylist(
 	await api.delete(`/playlists/${playlistId}/tracks/${trackId}`);
 }
 
+export async function reorderPlaylistTracks(
+	playlistId: string,
+	trackIds: string[]
+): Promise<void> {
+	await api.put(`/playlists/${playlistId}/tracks/reorder`, { trackIds });
+}
+
 export function getPlaylistCoverUrl(
 	playlistId: string,
 	size: 'thumbnail' | 'small' | 'medium' | 'large' = 'medium'
@@ -71,5 +78,6 @@ export default {
 	deletePlaylist,
 	addTrackToPlaylist,
 	removeTrackFromPlaylist,
+	reorderPlaylistTracks,
 	getPlaylistCoverUrl
 };

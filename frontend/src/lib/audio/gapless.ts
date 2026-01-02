@@ -10,6 +10,9 @@ import { queue, currentTrack, isPlaying } from '$lib/stores/player';
 import { getStreamUrl } from '$lib/api/client';
 import type { Track } from '$lib/stores/player';
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
 export interface GaplessOptions {
 	crossfadeDuration?: number; // Duration of crossfade in seconds (0 = no crossfade)
 	preloadTime?: number; // When to start preloading next track (seconds before end)
@@ -44,11 +47,15 @@ class GaplessPlayer {
 	}
 
 	private checkSupport(): void {
+		if (!isBrowser) {
+			this.isSupported = false;
+			return;
+		}
 		this.isSupported = typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined';
 	}
 
 	async initialize(): Promise<boolean> {
-		if (!this.isSupported) return false;
+		if (!isBrowser || !this.isSupported) return false;
 
 		try {
 			const AudioContextClass = AudioContext || (window as any).webkitAudioContext;

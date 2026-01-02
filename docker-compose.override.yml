@@ -1,0 +1,42 @@
+# Development Override
+# This file is automatically loaded by docker compose
+# To use production settings only, run: docker compose -f docker-compose.yml up
+#
+# For development:
+#   - Removes resource limits
+#   - Enables debug logging
+#   - Uses local builds
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      - GIN_MODE=debug
+      - LOG_LEVEL=debug
+    deploy:
+      resources:
+        limits:
+          cpus: ''
+          memory: ''
+    # Enable hot-reload for development (requires rebuild)
+    # volumes:
+    #   - ./backend:/app:ro
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      - NODE_ENV=development
+    deploy:
+      resources:
+        limits:
+          cpus: ''
+          memory: ''
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: ''
+          memory: ''
