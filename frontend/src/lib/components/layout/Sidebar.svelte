@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { clsx } from 'clsx';
 	import { page } from '$app/stores';
-	import { Home, Search, Library, Plus, Music, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { Home, Search, Library, Plus, Music, ChevronLeft, ChevronRight, Settings } from 'lucide-svelte';
 	import Button from '../ui/Button.svelte';
 
 	interface Props {
@@ -24,7 +24,8 @@
 	const navItems = [
 		{ href: '/', icon: Home, label: 'Home' },
 		{ href: '/search', icon: Search, label: 'Search' },
-		{ href: '/library', icon: Library, label: 'Your Library' }
+		{ href: '/library', icon: Library, label: 'Your Library' },
+		{ href: '/settings', icon: Settings, label: 'Settings' }
 	];
 
 	function toggleCollapse() {
