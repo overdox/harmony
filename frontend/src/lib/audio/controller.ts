@@ -35,6 +35,7 @@ class AudioController {
 	private isInitialized: boolean = false;
 	private unsubscribers: (() => void)[] = [];
 	private loadedTrackId: string | null = null;
+	private isTransitioning: boolean = false; // Prevents race conditions during track changes
 
 	constructor(options: AudioControllerOptions = {}) {
 		this.quality = options.quality || 'original';
@@ -65,8 +66,13 @@ class AudioController {
 		this.audio.addEventListener('error', this.handleError.bind(this));
 		this.audio.addEventListener('waiting', this.handleWaiting.bind(this));
 		this.audio.addEventListener('canplay', this.handleCanPlay.bind(this));
-		this.audio.addEventListener('play', () => isPlaying.set(true));
-		this.audio.addEventListener('pause', () => isPlaying.set(false));
+		// Only sync play/pause state when not transitioning between tracks
+		this.audio.addEventListener('play', () => {
+			if (!this.isTransitioning) isPlaying.set(true);
+		});
+		this.audio.addEventListener('pause', () => {
+			if (!this.isTransitioning) isPlaying.set(false);
+		});
 	}
 
 	private setupStoreSubscriptions(): void {
@@ -82,6 +88,9 @@ class AudioController {
 
 		// Subscribe to play state changes
 		const playUnsub = isPlaying.subscribe((playing) => {
+			// Don't interfere during track transitions
+			if (this.isTransitioning) return;
+
 			if (this.isInitialized && this.audio?.src) {
 				if (playing && this.audio.paused) {
 					this.audio.play().catch(this.handlePlayError.bind(this));
@@ -176,11 +185,13 @@ class AudioController {
 	private async loadTrack(track: Track): Promise<void> {
 		if (!this.audio) {
 			console.warn('loadTrack: audio element not available');
+			this.isTransitioning = false;
 			return;
 		}
 
 		if (!track.id) {
 			console.error('loadTrack: track has no ID', track);
+			this.isTransitioning = false;
 			return;
 		}
 
@@ -190,6 +201,7 @@ class AudioController {
 			if (get(isPlaying) && this.audio.paused) {
 				this.audio.play().catch(this.handlePlayError.bind(this));
 			}
+			this.isTransitioning = false;
 			return;
 		}
 
@@ -210,6 +222,8 @@ class AudioController {
 			}
 		}
 
+		// Clear transitioning flag after loading is complete
+		this.isTransitioning = false;
 	}
 
 	// Event handlers
@@ -244,12 +258,18 @@ class AudioController {
 		console.error('Audio playback error:', error?.message || 'Unknown error');
 		isLoading.set(false);
 		isPlaying.set(false);
+		this.isTransitioning = false;
 	}
 
 	private handlePlayError(error: unknown): void {
+		// Don't log AbortError during transitions - it's expected
+		if (error instanceof Error && error.name === 'AbortError' && this.isTransitioning) {
+			return;
+		}
 		console.error('Failed to play:', error);
 		isLoading.set(false);
 		isPlaying.set(false);
+		this.isTransitioning = false;
 	}
 
 	private handleWaiting(): void {
@@ -315,13 +335,16 @@ class AudioController {
 		const nextTrack = getNextTrack();
 
 		if (nextTrack) {
+			// Set transitioning flag to prevent race conditions
+			this.isTransitioning = true;
+
 			// Push current track to history
 			pushToHistory(track);
 
 			// Clear loaded track ID so loadTrack will load the new track
 			this.loadedTrackId = null;
 
-			// Set isPlaying before changing track so loadTrack will auto-play
+			// Set isPlaying state (loadTrack will handle actual playback)
 			isPlaying.set(true);
 			currentTrack.set(nextTrack);
 		} else if (repeatMode === 'all' && this.audio?.src) {
@@ -344,6 +367,9 @@ class AudioController {
 		const prevTrack = getPreviousTrack();
 
 		if (prevTrack) {
+			// Set transitioning flag to prevent race conditions
+			this.isTransitioning = true;
+
 			// Return current track to front of queue
 			if (track) {
 				returnToQueue(track);
@@ -352,7 +378,7 @@ class AudioController {
 			// Clear loaded track ID so loadTrack will load the new track
 			this.loadedTrackId = null;
 
-			// Set isPlaying before changing track so loadTrack will auto-play
+			// Set isPlaying state (loadTrack will handle actual playback)
 			isPlaying.set(true);
 			currentTrack.set(prevTrack);
 		} else {

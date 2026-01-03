@@ -62,9 +62,9 @@ ENV HOST=0.0.0.0
 ENV ORIGIN=http://localhost:3000
 ENV BODY_SIZE_LIMIT=Infinity
 
-# Health check
+# Health check (use 127.0.0.1 instead of localhost for IPv4)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget -q --spider http://localhost:3000 || exit 1
+    CMD wget -q -O /dev/null http://127.0.0.1:3000 || exit 1
 
 # Use dumb-init as PID 1 for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
