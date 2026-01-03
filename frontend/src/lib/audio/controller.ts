@@ -30,16 +30,14 @@ const isBrowser = typeof window !== 'undefined';
 
 class AudioController {
 	private audio: HTMLAudioElement | null = null;
-	private nextAudio: HTMLAudioElement | null = null;
 	private quality: AudioQuality = 'original';
-	private preloadNext: boolean = true;
 	private crossfadeDuration: number = 0;
 	private isInitialized: boolean = false;
 	private unsubscribers: (() => void)[] = [];
+	private loadedTrackId: string | null = null;
 
 	constructor(options: AudioControllerOptions = {}) {
 		this.quality = options.quality || 'original';
-		this.preloadNext = options.preloadNext ?? true;
 		this.crossfadeDuration = options.crossfadeDuration || 0;
 
 		// Only initialize audio in browser environment
@@ -186,7 +184,17 @@ class AudioController {
 			return;
 		}
 
+		// Skip if this exact track is already loaded and playing
+		if (this.loadedTrackId === track.id && this.audio.src) {
+			// Just ensure playback state is correct
+			if (get(isPlaying) && this.audio.paused) {
+				this.audio.play().catch(this.handlePlayError.bind(this));
+			}
+			return;
+		}
+
 		isLoading.set(true);
+		this.loadedTrackId = track.id;
 
 		const streamUrl = getStreamUrl(track.id, this.quality);
 		this.audio.src = streamUrl;
@@ -202,24 +210,6 @@ class AudioController {
 			}
 		}
 
-		// Preload next track
-		if (this.preloadNext) {
-			this.preloadNextTrack();
-		}
-	}
-
-	private preloadNextTrack(): void {
-		if (!isBrowser) return;
-
-		const queueTracks = get(queue);
-		if (queueTracks.length > 0) {
-			const nextTrack = queueTracks[0];
-			this.nextAudio = new Audio();
-			this.nextAudio.preload = 'auto';
-			this.nextAudio.src = getStreamUrl(nextTrack.id, this.quality);
-		} else {
-			this.nextAudio = null;
-		}
 	}
 
 	// Event handlers
@@ -318,48 +308,29 @@ class AudioController {
 		const track = get(currentTrack);
 		const repeatMode = get(repeat);
 
-		// Push current track to history
-		if (track) {
-			pushToHistory(track);
-		}
+		// If no current track, nothing to do
+		if (!track) return;
 
-		// Use preloaded audio if available
-		if (this.audio && this.nextAudio && this.nextAudio.src) {
-			const queueTracks = get(queue);
-			if (queueTracks.length > 0) {
-				const nextTrack = queueTracks[0];
-				queue.update((q) => q.slice(1));
-
-				// Swap audio elements
-				this.audio.pause();
-				this.audio = this.nextAudio;
-				this.setupAudioElement();
-				this.nextAudio = null;
-
-				currentTrack.set(nextTrack);
-				this.updateMediaSessionMetadata(nextTrack);
-				this.audio.play().catch(this.handlePlayError.bind(this));
-
-				// Preload the next one
-				this.preloadNextTrack();
-				return;
-			}
-		}
-
-		// Fallback: get next track normally
+		// Get next track from queue
 		const nextTrack = getNextTrack();
 
 		if (nextTrack) {
+			// Push current track to history
+			pushToHistory(track);
+
+			// Clear loaded track ID so loadTrack will load the new track
+			this.loadedTrackId = null;
+
+			// Set isPlaying before changing track so loadTrack will auto-play
+			isPlaying.set(true);
 			currentTrack.set(nextTrack);
-		} else if (repeatMode === 'all' && track && this.audio?.src) {
-			// No more tracks, but repeat all is on - restart queue
+		} else if (repeatMode === 'all' && this.audio?.src) {
+			// No more tracks, but repeat all is on - restart current track
 			this.audio.currentTime = 0;
+			isPlaying.set(true);
 			this.audio.play().catch(this.handlePlayError.bind(this));
-		} else {
-			// End of queue
-			this.stop();
-			currentTrack.set(null);
 		}
+		// If no next track and repeat is off, do nothing (stay on current track)
 	}
 
 	previous(): void {
@@ -377,6 +348,12 @@ class AudioController {
 			if (track) {
 				returnToQueue(track);
 			}
+
+			// Clear loaded track ID so loadTrack will load the new track
+			this.loadedTrackId = null;
+
+			// Set isPlaying before changing track so loadTrack will auto-play
+			isPlaying.set(true);
 			currentTrack.set(prevTrack);
 		} else {
 			// No previous track, just restart current
@@ -452,8 +429,6 @@ class AudioController {
 			this.audio.pause();
 			this.audio.src = '';
 		}
-		this.nextAudio?.pause();
-		this.nextAudio = null;
 	}
 }
 

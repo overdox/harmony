@@ -29,6 +29,10 @@ export interface SelectedFoldersResponse {
  */
 export async function getSetupStatus(): Promise<SetupStatus> {
 	const response = await api.get<SetupStatus>('/setup/status');
+	if (!response.data) {
+		// Return default "not completed" status if API returns no data
+		return { completed: false, mediaRoot: '' };
+	}
 	return response.data;
 }
 
