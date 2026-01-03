@@ -20,6 +20,8 @@
 	import { getTracks } from '$lib/api/tracks';
 	import { getPlaylists, createPlaylist } from '$lib/api/playlists';
 	import { startLibraryScan, getScanStatus, getLibraryStats } from '$lib/api/search';
+	import { playTracks } from '$lib/stores/player';
+	import { getAudioController } from '$lib/audio';
 	import { debounce, storage } from '$lib/utils';
 	import type { Album, Artist, Track, Playlist, LibraryStats, ScanProgress } from '$lib/api/types';
 
@@ -209,6 +211,27 @@
 			{ value: 'duration', label: 'Duration' }
 		]
 	};
+
+	function handlePlayTrack(index: number) {
+		if (tracks.length === 0) return;
+
+		// Convert API tracks to player tracks
+		const playerTracks = tracks.map((t) => ({
+			id: t.id,
+			title: t.title,
+			duration: t.duration,
+			trackNumber: t.trackNumber,
+			format: t.format,
+			albumId: t.albumId,
+			albumTitle: t.albumTitle,
+			artistId: t.artistId,
+			artistName: t.artistName
+		}));
+
+		// Play all tracks starting from the clicked one
+		playTracks(playerTracks, index);
+		getAudioController().play();
+	}
 </script>
 
 <svelte:head>
@@ -406,7 +429,17 @@
 		{:else}
 			<div class="bg-surface-elevated rounded-lg overflow-hidden">
 				{#each tracks as track, i (track.id)}
-					<TrackRow {track} index={i} showAlbum showArtist />
+					<TrackRow
+						{track}
+						index={i}
+						showAlbum
+						showArtist
+						albumTitle={track.albumTitle}
+						artistName={track.artistName}
+						albumId={track.albumId}
+						artistId={track.artistId}
+						onPlay={() => handlePlayTrack(i)}
+					/>
 				{/each}
 			</div>
 		{/if}

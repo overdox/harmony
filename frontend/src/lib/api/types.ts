@@ -41,7 +41,9 @@ export interface Track {
 	format: string;
 	bitrate?: number;
 	albumId?: string;
+	albumTitle?: string;
 	artistId?: string;
+	artistName?: string;
 	genre?: string;
 	year?: number;
 	links?: Link[];

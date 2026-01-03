@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { clsx } from 'clsx';
 	import { page } from '$app/stores';
 	import { Home, Search, Library, Plus, ChevronLeft, ChevronRight, Settings, Music } from 'lucide-svelte';
 	import Button from '../ui/Button.svelte';
-	import logo from '$lib/assets/logo.svg';
+	import Logo from './Logo.svelte';
+	import { getPlaylists } from '$lib/api/playlists';
+	import type { Playlist } from '$lib/api/types';
 
 	interface Props {
 		collapsed?: boolean;
@@ -15,12 +18,20 @@
 		oncollapse
 	}: Props = $props();
 
-	// Mock playlists - will be replaced with real data
-	const playlists = [
-		{ id: '1', name: 'Liked Songs', trackCount: 42 },
-		{ id: '2', name: 'Discover Weekly', trackCount: 30 },
-		{ id: '3', name: 'Chill Vibes', trackCount: 25 }
-	];
+	let playlists = $state<Playlist[]>([]);
+	let loadingPlaylists = $state(true);
+
+	onMount(async () => {
+		try {
+			const response = await getPlaylists();
+			playlists = response.playlists;
+		} catch (e) {
+			// Silently fail - playlists section will be empty
+			console.error('Failed to load playlists:', e);
+		} finally {
+			loadingPlaylists = false;
+		}
+	});
 
 	const navItems = [
 		{ href: '/', icon: Home, label: 'Home' },
@@ -48,7 +59,7 @@
 >
 	<!-- Logo -->
 	<div class="flex items-center gap-3 px-4 py-4">
-		<img src={logo} alt="Harmony" class="w-10 h-10" />
+		<Logo size={40} />
 		{#if !collapsed}
 			<span class="text-xl font-bold tracking-tight">Harmony</span>
 		{/if}
@@ -89,29 +100,39 @@
 			</div>
 
 			<div class="flex-1 overflow-y-auto px-2 pb-2">
-				<ul class="space-y-0.5">
-					{#each playlists as playlist}
-						<li>
-							<a
-								href="/playlist/{playlist.id}"
-								class={clsx(
-									'flex items-center gap-3 px-2 py-2 rounded-md transition-colors',
-									$page.url.pathname === `/playlist/${playlist.id}`
-										? 'bg-surface-hover text-white'
-										: 'text-text-secondary hover:text-white hover:bg-surface-hover/50'
-								)}
-							>
-								<div class="w-10 h-10 bg-surface-hover rounded flex items-center justify-center flex-shrink-0">
-									<Music size={16} class="text-text-muted" />
-								</div>
-								<div class="min-w-0 flex-1">
-									<p class="text-sm font-medium truncate">{playlist.name}</p>
-									<p class="text-xs text-text-muted">{playlist.trackCount} tracks</p>
-								</div>
-							</a>
-						</li>
-					{/each}
-				</ul>
+				{#if loadingPlaylists}
+					<div class="px-2 py-4 text-center text-text-muted text-sm">
+						Loading...
+					</div>
+				{:else if playlists.length === 0}
+					<div class="px-2 py-4 text-center text-text-muted text-sm">
+						No playlists yet
+					</div>
+				{:else}
+					<ul class="space-y-0.5">
+						{#each playlists as playlist}
+							<li>
+								<a
+									href="/playlist/{playlist.id}"
+									class={clsx(
+										'flex items-center gap-3 px-2 py-2 rounded-md transition-colors',
+										$page.url.pathname === `/playlist/${playlist.id}`
+											? 'bg-surface-hover text-white'
+											: 'text-text-secondary hover:text-white hover:bg-surface-hover/50'
+									)}
+								>
+									<div class="w-10 h-10 bg-surface-hover rounded flex items-center justify-center flex-shrink-0">
+										<Music size={16} class="text-text-muted" />
+									</div>
+									<div class="min-w-0 flex-1">
+										<p class="text-sm font-medium truncate">{playlist.name}</p>
+										<p class="text-xs text-text-muted">{playlist.trackCount ?? 0} tracks</p>
+									</div>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</div>
 		</div>
 	{/if}
